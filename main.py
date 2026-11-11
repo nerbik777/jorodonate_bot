@@ -14,7 +14,6 @@ def send_welcome(message):
     user_id = message.from_user.id
     user_data[user_id] = {'step': 'menu'}
     
-    # Установка постоянной кнопки меню рядом с полем ввода
     bot.set_chat_menu_button(chat_id=message.chat.id, menu_button=types.MenuButtonCommands(type='commands'))
     
     markup = types.InlineKeyboardMarkup(row_width=1)
@@ -52,7 +51,6 @@ def callback_query(call):
     elif call.data == "cat_money":
         bot.answer_callback_query(call.id)
         markup = types.InlineKeyboardMarkup(row_width=2)
-        # Цены в звездах (Telegram Stars)
         markup.add(
             types.InlineKeyboardButton("10.000₽ (80 ⭐)", callback_data="buy_m_80"),
             types.InlineKeyboardButton("60.000₽ (350 ⭐)", callback_data="buy_m_350"),
@@ -64,7 +62,7 @@ def callback_query(call):
         markup.add(types.InlineKeyboardButton("⬅️ Назад", callback_data="open_shop"))
         
         bot.edit_message_text(
-            "💰 **Виновыберите сумму игровых денег:** (Деньги не настоящие, для РП сервера)", 
+            "💰 **Выберите сумму игровых денег:** (Деньги не настоящие, для РП сервера)", 
             call.message.chat.id, 
             call.message.message_id, 
             reply_markup=markup,
@@ -116,7 +114,7 @@ def ask_for_credentials(chat_id, user_id):
     )
     bot.send_message(chat_id, text, parse_mode="Markdown")
 
-# Обработка текстовых сообщений (ввод монет или ника)
+# Обработка текстовых сообщений
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
     user_id = message.from_user.id
@@ -127,7 +125,6 @@ def handle_text(message):
         
     current_step = user_data[user_id].get('step', 'menu')
 
-    # Шаг 1: Пользователь вводит количество донат-монет
     if current_step == 'wait_coins_amount':
         if not text.isdigit() or int(text) <= 0:
             bot.send_message(message.chat.id, "❌ Пожалуйста, введите корректное число цифрой (например: 10):")
@@ -142,7 +139,6 @@ def handle_text(message):
         }
         ask_for_credentials(message.chat.id, user_id)
 
-    # Шаг 2: Пользователь вводит ник и ID
     elif current_step == 'wait_credentials':
         user_data[user_id]['nickname'] = text
         user_data[user_id]['step'] = 'ready_to_pay'
@@ -151,11 +147,7 @@ def handle_text(message):
         if not order:
             bot.send_message(message.chat.id, "⚠️ Сначала выберите товар в магазине через /start")
             return
-
-        # Уведомление вам (администратору) в консоль или чат (если нужно, можно указать ваш Telegram ID)
-        print(f"📦 Новый игрок указал данные! Юзер: @{message.from_user.username}, Данные: {text}")
         
-        # Кнопка отправки инвойса (оплата звёздами)
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton(f"💳 Оплатить {order['price']} ⭐", callback_data="pay_invoice"))
         markup.add(types.InlineKeyboardButton("✏️ Изменить ник/ID", callback_data="change_cred"))
@@ -166,17 +158,14 @@ def handle_text(message):
             reply_markup=markup,
             parse_mode="Markdown"
         )
-        
     else:
         bot.send_message(message.chat.id, "Нажми /start, чтобы открыть магазин 🛒")
 
-# Изменение данных
 @bot.callback_query_handler(func=lambda call: call.data == "change_cred")
 def change_cred_callback(call):
     bot.answer_callback_query(call.id)
     ask_for_credentials(call.message.chat.id, call.from_user.id)
 
-# Выставление счета через Telegram Stars
 @bot.callback_query_handler(func=lambda call: call.data == "pay_invoice")
 def pay_invoice_callback(call):
     bot.answer_callback_query(call.id)
@@ -190,17 +179,15 @@ def pay_invoice_callback(call):
 
     prices = [types.LabeledPrice(label=order['title'], amount=order['price'])]
     
-    # Отправка инвойса в Звездах (XTR)
     bot.send_invoice(
         chat_id=call.message.chat.id,
         title=order['title'],
-        description=ل description := f"Покупка для игрока: {nickname}",
+        description=f"Покупка для игрока: {nickname}",
         invoice_payload="joro_rp_payment",
-        currency="XTR", # Валюта Telegram Stars
+        currency="XTR",
         prices=prices
     )
 
-# Подтверждение успешной оплаты
 @bot.pre_checkout_query_handler(func=lambda query: True)
 def checkout(pre_checkout_query):
     bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
@@ -216,9 +203,6 @@ def got_payment(message):
         "🎉 **Оплата успешно прошла!**\n\nВаш заказ передан администратору, скоро он будет выдан вам на сервере JORO RP.",
         parse_mode="Markdown"
     )
-    
-    # Сюда бот пришлет вам отчет об успешной покупке (в чат с ботом или можно настроить ваш ID)
-    # Если вы хотите получать уведомления себе, бот может присылать их в этот же чат или мы можем прописать ваш ID администратора.
     bot.send_message(
         message.chat.id, 
         f"🚨 **НОВАЯ ПОКУПКА!**\nИгрок: `{nickname}`\nКупил: `{order}`\nTelegram: @{message.from_user.username}",
